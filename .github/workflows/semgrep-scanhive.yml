@@ -1,0 +1,32 @@
+name: Semgrep scan to ScanHive
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout Juice Shop
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep scan --config auto --sarif --output semgrep-results.sarif
+        continue-on-error: true # don't fail the job on findings; let ScanHive triage them
+
+      - name: Upload SARIF to ScanHive
+        id: scanhive
+        uses: sechive-labs/scanhive-github-action@v1.0.1
+        with:
+          server-url: "https://scanhive.pentestguy.in" # point at your ScanHive server
+          api-key: ${{ secrets.SCANHIVE_API_KEY }}
+          project: "juice-shop"
+          scan-type: "SAST"
+          sarif-file: "semgrep-results.sarif"
+
+      - name: Show upload summary
+        run: echo "ScanHive imported ${{ steps.scanhive.outputs.findings }} findings"
